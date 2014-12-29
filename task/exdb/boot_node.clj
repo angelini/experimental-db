@@ -1,4 +1,4 @@
-(ns exdb.node
+(ns exdb.boot-node
   (:require [boot.core :refer :all]
             [clojure.java.io :as io]))
 

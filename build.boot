@@ -1,11 +1,15 @@
-(set-env! :source-paths #{"src" "task"})
+(set-env! :source-paths #{"src" "task"}
+          :resource-paths #{"src"}
+          :dependencies '[[org.clojure/clojure "1.6.0" :scope "provided"]])
 
-(task-options! pom {:project 'experimental-db
-                    :version "0.0.1"})
-
-(require '[exdb.node :refer :all])
+(require '[exdb.boot-node :refer :all])
 
 (deftask build
   "Build project"
   []
-  (comp (pom) (jar) (install)))
+  (comp
+   (aot :namespace '#{exdb.core})
+   (pom :project 'exdb
+        :version "0.0.1")
+   (uber)
+   (jar :main 'exdb.core)))
