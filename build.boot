@@ -1,8 +1,16 @@
 (set-env! :source-paths #{"src" "task"}
           :resource-paths #{"src"}
-          :dependencies '[[org.clojure/clojure "1.6.0" :scope "provided"]])
+          :dependencies '[[org.clojure/clojure "1.6.0" :scope "provided"]
+                          [org.clojure/core.async "0.1.346.0-17112a-alpha"]
+                          [clojure-msgpack "0.1.0-SNAPSHOT"]])
 
-(require '[exdb.boot-node :refer :all])
+(import '[java.net Socket])
+
+(require '[clojure.core.async :as async :refer (>!! <!!)]
+         '[msgpack.core :refer (pack unpack)])
+
+(require '[exdb.boot-node :refer :all]
+         '[exdb.serf :refer :all])
 
 (deftask build
   "Build project"
