@@ -10,7 +10,8 @@
          '[msgpack.core :refer (pack unpack)])
 
 (require '[exdb.boot-node :refer :all]
-         '[exdb.serf :refer :all])
+         '[exdb.core :refer :all]
+         '[exdb.serf :as serf])
 
 (deftask build
   "Build project"
