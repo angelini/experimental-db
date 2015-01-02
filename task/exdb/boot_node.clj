@@ -1,44 +1,50 @@
 (ns exdb.boot-node
   (:require [boot.core :refer :all]
-            [clojure.java.io :as io]))
+            [clojure.java.io :as io]
+            [exdb.boot-build :refer (build)]))
 
-(defn clj->env [[k v]]
+(defn- clj->env [[k v]]
   (str k "=" v))
 
-(defn write-env [dir id name]
-  (let [file (io/file dir "env.sh")
-        env (map clj->env {"NODE_NAME" name
-                           "SERF_SEED" "127.0.0.1:8100"
-                           "SERF_BIND" (str "127.0.0.1:81" id)
-                           "SERF_RPC" (str "127.0.0.1:82" id)
-                           "REDIS_PORT" (str "83" id)})]
-    (spit file (clojure.string/join "\n" env))))
+(defn- format-id [id]
+  (format "%02d" id))
 
-(defn copy-script [dir script]
-  (let [file (io/file dir "exdb")
-        content (slurp script)]
-    (spit file content)
-    (.setExecutable file true)))
+(defn- id->name [id]
+  (str "node-" (format-id id)))
+
+(defn create-node-env [dir id]
+  (let [out (io/file dir "env.sh")
+        id-fmt (format-id id)
+        env (map clj->env {"NODE_NAME" (id->name id)
+                           "SERF_SEED" "127.0.0.1:8100"
+                           "SERF_BIND" (str "127.0.0.1:81" id-fmt)
+                           "SERF_RPC" (str "127.0.0.1:82" id-fmt)
+                           "REDIS_PORT" (str "83" id-fmt)})]
+    (spit out (str (clojure.string/join "\n" env) "\n"))))
+
+(defn copy-file [fs dir script name]
+  (let [script (->> (input-files fs)
+                    (by-name [script])
+                    first
+                    tmpfile)]
+    (spit (io/file dir name)
+          (slurp script))))
 
 (deftask create-nodes
   "Create a new node"
   [n num NUM int "The number of nodes to create"]
-  (let [tmp (temp-dir!)]
+  (let [tmp (temp-dir!)
+        ids (map inc (-> num
+                         (or 3)
+                         range))]
     (with-pre-wrap fileset
-      (empty-dir! tmp)
-      (doseq [id (-> num
-                   (or 3)
-                   range)
-              :let [id-fmt (format "%02d" id)
-                    name (str "node-" id-fmt)
-                    node-dir (io/file tmp name)
-                    script (->> (input-files fileset)
-                             (filter #(= (:path %) "exdb.sh"))
-                             first
-                             tmpfile)]]
+      (empty-dir! tmp) ;; TODO only remove dirs like "node-\d+"
+      (doseq [id ids
+              :let [name (id->name id)
+                    node-dir (io/file tmp name)]]
         (.mkdir node-dir)
-        (write-env node-dir id-fmt name)
-        (copy-script node-dir script))
+        (copy-file fileset node-dir "exdb.sh" "exdb")
+        (create-node-env node-dir id))
       (-> fileset
-        (add-resource tmp)
-        (commit!)))))
+          (add-resource tmp)
+          commit!))))

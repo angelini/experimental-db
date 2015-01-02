@@ -66,7 +66,6 @@
                (<! chan))))
     event-chan))
 
-
 (defn connect [host port]
   (let [socket (Socket. host port)
         client {:socket socket
