@@ -5,17 +5,15 @@
 
 (def members (atom {}))
 
-(defn initial-members [s chan]
-  (let [members (serf/members s chan)]
+(defn initial-members [client]
+  (let [members (serf/members client)]
     (into {} (map (fn [m] [(:name m) (:status m)]) members))))
 
 (defn watch-members [host port]
-  (let [s (serf/connect host port)
-        chan (serf/read-messages s)]
-    (serf/handshake s chan)
-    (swap! members (fn [old new] new) (initial-members s chan))
+  (let [client (serf/connect host port)]
+    (swap! members (fn [old new] new) (initial-members client))
     (async/go
-      (let [event-chan (serf/stream s chan)]
+      (let [event-chan (serf/stream client)]
         (loop [event (<! event-chan)]
           (swap! members (fn [old]
                            (assoc old

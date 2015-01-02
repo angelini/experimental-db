@@ -17,10 +17,7 @@
 (defn- write-socket [s b]
   (.write (.getOutputStream s) b 0 (count b)))
 
-(defn connect [host port]
-  (Socket. host port))
-
-(defn read-messages [s]
+(defn- read-messages [s]
   (let [in (.getInputStream s)
         chan (async/chan 10)]
     (async/go
@@ -34,29 +31,29 @@
             (recur (read-socket in))))))
     chan))
 
-(defn write-command
+(defn- write-command
   ([s command] (write-socket s (pack {"Command" command "Seq" (swap! seq-counter inc)})))
   ([s command body] (write-socket s (-> (pack {"Command" command "Seq" (swap! seq-counter inc)})
                                       (concat (pack body))
                                       byte-array))))
 
-(defn member-parser [member]
+(defn- member-parser [member]
   (-> member
     (select-keys ["Name" "Status"])
     (clojure.set/rename-keys {"Name" :name "Status" :status})))
 
-(defn handshake [s chan]
-  (write-command s "handshake" {"Version" 1})
+(defn- handshake [{socket :socket chan :chan}]
+  (write-command socket "handshake" {"Version" 1})
   (<!! chan))
 
-(defn members [s chan]
-  (write-command s "members")
+(defn members [{socket :socket chan :chan}]
+  (write-command socket "members")
   (<!! chan)
   (let [res (<!! chan)]
     (map member-parser (res "Members"))))
 
-(defn stream [s chan]
-  (write-command s "stream" {"Type" "*"})
+(defn stream [{socket :socket chan :chan}]
+  (write-command socket "stream" {"Type" "*"})
   (<!! chan)
   (let [event-chan (async/chan 10)]
     (async/go
@@ -68,3 +65,11 @@
         (recur (<! chan)
                (<! chan))))
     event-chan))
+
+
+(defn connect [host port]
+  (let [socket (Socket. host port)
+        client {:socket socket
+                :chan (read-messages socket)}]
+    (handshake client)
+    client))
