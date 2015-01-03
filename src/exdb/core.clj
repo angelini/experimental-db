@@ -9,8 +9,9 @@
   (let [members (serf/members client)]
     (into {} (map (fn [m] [(:name m) (:status m)]) members))))
 
-(defn watch-members [host port]
-  (let [client (serf/connect host port)]
+(defn watch-members [seed]
+  (let [[host port] (clojure.string/split seed #":")
+        client (serf/connect host (Integer/parseInt port))]
     (swap! members (fn [old new] new) (initial-members client))
     (async/go
       (let [event-chan (serf/stream client)]
@@ -22,5 +23,5 @@
           (recur (<! event-chan)))))))
 
 (defn -main []
-  (watch-members "127.0.0.1" 8201)
+  (watch-members (System/getenv "SERF_SEED_RPC"))
   (println "members" @members))

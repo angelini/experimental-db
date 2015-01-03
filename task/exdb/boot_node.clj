@@ -3,7 +3,7 @@
             [clojure.java.io :as io]))
 
 (defn- clj->env [[k v]]
-  (str k "=" v))
+  (str "export " k "=" v))
 
 (defn- format-id [id]
   (format "%02d" id))
@@ -16,6 +16,7 @@
         id-fmt (format-id id)
         env (map clj->env {"NODE_NAME" (id->name id)
                            "SERF_SEED" "127.0.0.1:8101"
+                           "SERF_SEED_RPC" "127.0.0.1:8201"
                            "SERF_BIND" (str "127.0.0.1:81" id-fmt)
                            "SERF_RPC" (str "127.0.0.1:82" id-fmt)
                            "REDIS_PORT" (str "83" id-fmt)})]
