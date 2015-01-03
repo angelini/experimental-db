@@ -5,6 +5,11 @@
 
 (def seq-counter (atom 0))
 
+(defn- throw-on-error [header]
+  (let [err (header "Error")]
+    (when (not (empty? err))
+      (throw (Exception. (str "RPC Error: " err))))))
+
 (defn- read-socket [in]
   (try
     (let [first (.read in)]
@@ -13,9 +18,6 @@
           (recur (conj acc (.read in)))
           (seq acc))))
     (catch SocketTimeoutException e nil)))
-
-(defn- write-socket [s b]
-  (.write (.getOutputStream s) b 0 (count b)))
 
 (defn- read-messages [s]
   (let [in (.getInputStream s)
@@ -31,11 +33,18 @@
             (recur (read-socket in))))))
     chan))
 
-(defn- write-command
-  ([s command] (write-socket s (pack {"Command" command "Seq" (swap! seq-counter inc)})))
-  ([s command body] (write-socket s (-> (pack {"Command" command "Seq" (swap! seq-counter inc)})
-                                      (concat (pack body))
-                                      byte-array))))
+(defn- create-message [command body]
+  (let [seq-num (swap! seq-counter inc)
+        header {"Command" command "Seq" seq-num}]
+    (if (nil? body)
+      (pack header)
+      (-> (pack header)
+          (concat (pack body))
+          byte-array))))
+
+(defn- write-command [s command & {:keys [body]}]
+  (let [message (create-message command body)]
+    (.write (.getOutputStream s) message 0 (count message))))
 
 (defn- member-parser [member]
   (-> member
@@ -43,22 +52,23 @@
     (clojure.set/rename-keys {"Name" :name "Status" :status})))
 
 (defn- handshake [{socket :socket chan :chan}]
-  (write-command socket "handshake" {"Version" 1})
-  (<!! chan))
+  (write-command socket "handshake" :body {"Version" 1})
+  (throw-on-error (<!! chan)))
 
 (defn members [{socket :socket chan :chan}]
   (write-command socket "members")
-  (<!! chan)
+  (throw-on-error (<!! chan))
   (let [res (<!! chan)]
     (map member-parser (res "Members"))))
 
 (defn stream [{socket :socket chan :chan}]
-  (write-command socket "stream" {"Type" "*"})
-  (<!! chan)
+  (write-command socket "stream" :body {"Type" "*"})
+  (throw-on-error (<!! chan))
   (let [event-chan (async/chan 10)]
     (async/go
       (loop [header (<! chan)
              event (<! chan)]
+        (throw-on-error header)
         (>! event-chan {:event (event "Event") :member (-> (event "Members")
                                                          first
                                                          member-parser)})
