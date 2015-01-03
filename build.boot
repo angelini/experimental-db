@@ -11,7 +11,8 @@
 
 (import '[java.net Socket])
 
-(require '[clojure.core.async :as async :refer (>!! <!!)]
+(require '[clojure.java.shell :only (sh)]
+         '[clojure.core.async :as async :refer (>!! <!!)]
          '[msgpack.core :refer (pack unpack)]
          '[clojurewerkz.chash.ring :as ch])
 
@@ -23,6 +24,30 @@
 (deftask build
   "Build project"
   [n num NUM int "The number of nodes to create"]
-  (comp
-   (build-jar)
-   (create-nodes :n num)))
+  (set-env! :target-path "target")
+  (comp (build-jar)
+        (create-nodes :n num)))
+
+(deftask stop
+  "Stop all nodes"
+  []
+  (set-env! :target-path "/tmp/boot")
+  (with-pre-wrap fileset
+    (sh "chmod" "a+x" "./target/all")
+    (sh "./target/all" "stop")
+    fileset))
+
+(deftask start
+  "Start all nodes"
+  []
+  (set-env! :target-path "/tmp/boot")
+  (with-post-wrap fileset
+    (sh "chmod" "a+x" "./target/all")
+    (sh "./target/all" "start")))
+
+(deftask all
+  "Restart and rebuilt all nodes"
+  [n num NUM int "The number of nodes to create"]
+  (comp (stop)
+        (build :n num)
+        (start)))

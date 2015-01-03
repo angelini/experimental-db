@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -x
-
 DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 NUM=$(expr $(find "${DIR}" -name "node-*" | wc -l) - 1)
 

@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -x
-
 DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 REDIS_LOG="${DIR}/redis.log"
@@ -17,11 +15,9 @@ JAR_PATH="${DIR}/exdb.jar"
 case "${1}" in
   start)
     if [[ ! -f "${REDIS_PID}" ]]; then
-      rm "${REDIS_LOG}" 2> /dev/null
       redis-server --port "${REDIS_PORT}" \
-                   --daemonize yes \
-                   --pidfile "${REDIS_PID}" \
-                   --logfile "${REDIS_LOG}"
+                   > "${REDIS_LOG}" &
+      echo "${!}" > "${REDIS_PID}"
     fi
 
     if [[ ! -f "${SERF_PID}" ]]; then
@@ -32,7 +28,7 @@ case "${1}" in
            -join="${SERF_SEED}" \
            -profile=local \
            > "${SERF_LOG}" &
-      echo "$!" > "${SERF_PID}"
+      echo "${!}" > "${SERF_PID}"
     fi
     ;;
 
