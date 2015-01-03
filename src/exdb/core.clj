@@ -54,6 +54,11 @@
             ring
             claims)))
 
+(defn key->nodes [ring key]
+  (let [ring-key (ch/key-of key)
+        successors (ch/successors ring ring-key 3)]
+    (map #(nth % 1) successors)))
+
 (defn -main []
   (let [env (parse-env (System/getenv))
         ring (build-ring (:num env))]
