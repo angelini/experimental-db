@@ -45,6 +45,16 @@
     (sh "chmod" "a+x" "./target/all")
     (sh "./target/all" "start")))
 
+(deftask run
+  "Run a specific node"
+  [i id ID int "The node id"]
+  (set-env! :target-path "/tmp/boot")
+  (let [name (id->name id)
+        exec (str "./target/" (id->name id) "/exdb")]
+    (with-post-wrap fileset
+      (sh "chmod" "a+x" exec)
+      (sh exec "run"))))
+
 (deftask all
   "Restart and rebuilt all nodes"
   [n num NUM int "The number of nodes to create"]

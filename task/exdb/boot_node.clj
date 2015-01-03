@@ -8,7 +8,7 @@
 (defn- format-id [id]
   (format "%02d" id))
 
-(defn- id->name [id]
+(defn id->name [id]
   (str "node-" (format-id id)))
 
 (defn create-node-env [dir id num]
