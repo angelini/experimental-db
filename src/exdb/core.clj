@@ -22,5 +22,5 @@
           (recur (<! event-chan)))))))
 
 (defn -main []
-  (watch-members "127.0.0.1" 8200)
-  (println "hello world"))
+  (watch-members "127.0.0.1" 8201)
+  (println "members" @members))

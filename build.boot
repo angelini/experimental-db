@@ -9,7 +9,14 @@
 (require '[clojure.core.async :as async :refer (>!! <!!)]
          '[msgpack.core :refer (pack unpack)])
 
-(require '[exdb.boot-build :refer :all]
+(require '[exdb.boot-jar :refer :all]
          '[exdb.boot-node :refer :all]
          '[exdb.core :refer :all]
          '[exdb.serf :as serf])
+
+(deftask build
+  "Build project"
+  [n num NUM int "The number of nodes to create"]
+  (comp
+   (build-jar)
+   (create-nodes :n num)))

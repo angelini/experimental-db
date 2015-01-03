@@ -2,13 +2,15 @@
 
 set -x
 
-DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 REDIS_LOG="${DIR}/redis.log"
 REDIS_PID="${DIR}/redis.pid"
 
 SERF_LOG="${DIR}/serf.log"
 SERF_PID="${DIR}/serf.pid"
+
+JAR_PATH="${DIR}/exdb.jar"
 
 . "${DIR}/env.sh"
 
@@ -44,6 +46,10 @@ case "${1}" in
       kill $(cat "${SERF_PID}")
       rm "${SERF_PID}"
     fi
+    ;;
+
+  run)
+    java -jar "${JAR_PATH}"
     ;;
 
   *)
