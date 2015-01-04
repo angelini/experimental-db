@@ -7,7 +7,6 @@
                           [ring/ring-defaults "0.1.3"]
                           [compojure "1.3.1"]
                           [clojure-msgpack "0.1.0-SNAPSHOT"]
-                          [clojurewerkz/chash "1.1.0"]
                           [com.taoensso/carmine "2.9.0"]])
 
 (import '[java.net Socket])
@@ -16,14 +15,14 @@
          '[clojure.java.io :as io]
          '[boot.pod :as pod]
          '[clojure.core.async :as async :refer (>!! <!!)]
-         '[msgpack.core :refer (pack unpack)]
-         '[clojurewerkz.chash.ring :as ch])
+         '[msgpack.core :refer (pack unpack)])
 
 (require '[exdb.boot-jar :refer :all]
          '[exdb.boot-node :refer :all]
          '[exdb.core :refer :all]
          '[exdb.serf :as serf]
-         '[exdb.redis :as redis])
+         '[exdb.redis :as redis]
+         '[exdb.ring :as ring])
 
 (defn exec [script & args]
   (let [file (-> (get-env :target-path)

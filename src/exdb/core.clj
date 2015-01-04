@@ -1,11 +1,11 @@
 (ns exdb.core
   (:require [clojure.core.async :as async :refer (>!! <!! >! <!)]
-            [clojurewerkz.chash.ring :as ch]
             [ring.adapter.jetty :refer (run-jetty)]
             [ring.util.response :refer (response redirect)]
             [exdb.serf :as serf]
             [exdb.server :as server]
-            [exdb.redis :as redis])
+            [exdb.redis :as redis]
+            [exdb.ring :as ring])
   (:gen-class))
 
 (def members (atom {}))
@@ -34,7 +34,6 @@
 (defn watch-members [[host port]]
   (let [client (serf/connect host port)]
     (swap! members (fn [old new] new) (initial-members client))
-    (println "members" @members)
     (async/go
       (let [event-chan (serf/stream client)]
         (loop [event (<! event-chan)]
@@ -43,26 +42,6 @@
                                   (:name (:member event))
                                   (:status (:member event)))))
           (recur (<! event-chan)))))))
-
-(defn mark-claimant [idx ring-elem]
-  (let [[hash _] ring-elem
-        members' @members
-        addrs (vec (keys members'))
-        addr (nth addrs (mod idx (count members')))]
-    [hash addr]))
-
-(defn build-ring []
-  (let [ring (ch/fresh 64 "seed")
-        claims (map-indexed mark-claimant (ch/claims ring))]
-    (reduce (fn [r [hash addr]]
-              (ch/update r hash addr))
-            ring
-            claims)))
-
-(defn key->nodes [ring key]
-  (let [ring-key (ch/key-of key)
-        successors (ch/successors ring ring-key 3)]
-    (vec (map #(nth % 1) successors))))
 
 (defmulti handle-request
   (fn [req & args] (:command req)))
@@ -86,7 +65,7 @@
 
 (defn listen [chan api-addr ring client]
   (async/go-loop [req (<! chan)]
-    (let [nodes (key->nodes ring (:key req))]
+    (let [nodes (ring/key->nodes ring (:key req))]
       (if (contains? nodes api-addr)
         (handle-request req ring client)
         (redirect-to-node req nodes)))))
@@ -99,7 +78,7 @@
 
 (defn -main []
   (let [env (parse-env (System/getenv))
-        ring (build-ring (:num env))
-        client (redis/connect (:redis-addr env))]
-    (watch-members (:seed-rpc env))
+        client (redis/connect (:redis-addr env))
+        ring (ring/build-ring [(:api-addr env)] (:n env))]
+    (watch-members (:seed-rpc env) ring)
     (start-api (:api-addr env) ring client)))
