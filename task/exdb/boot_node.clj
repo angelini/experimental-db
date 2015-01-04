@@ -19,8 +19,8 @@
                            "SERF_SEED_RPC" "127.0.0.1:8200"
                            "SERF_BIND" (str "127.0.0.1:81" id-fmt)
                            "SERF_RPC" (str "127.0.0.1:82" id-fmt)
-                           "REDIS_PORT" (str "83" id-fmt)
-                           "API_PORT" (str "84" id-fmt)
+                           "REDIS_ADDR" (str "127.0.0.1:83" id-fmt)
+                           "API_ADDR" (str "127.0.0.1:84" id-fmt)
                            "NUM_NODES" (str num)})]
     (spit out (str (clojure.string/join "\n" env) "\n"))))
 

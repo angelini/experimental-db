@@ -38,7 +38,7 @@
   [n num NUM int "The number of nodes to create"]
   (set-env! :target-path "target")
   (comp (build-jar)
-        (create-nodes :n num)))
+        (create-nodes :num num)))
 
 (deftask start
   "Start all nodes"
@@ -67,5 +67,5 @@
   "Restart and rebuilt all nodes"
   [n num NUM int "The number of nodes to create"]
   (comp (stop)
-        (build :n num)
+        (build :num num)
         (start)))

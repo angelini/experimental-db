@@ -8,5 +8,5 @@
 (defn g [c key]
   (wcar c (car/get key)))
 
-(defn connect [port]
-  {:pool {} :spec {:host "127.0.0.1" :port port}})
+(defn connect [[host port]]
+  {:pool {} :spec {:host host :port port}})

@@ -10,11 +10,9 @@
     (>!! chan {:command :get
                :key key
                :res res-chan})
-    (let [{:keys [status body]} (<!! res-chan)]
+    (let [res (<!! res-chan)]
       (async/close! res-chan)
-      {:headers {}
-       :status status
-       :body body})))
+      res)))
 
 (defn set-key [key req]
   (let [{:keys [chan body]} req
@@ -23,11 +21,9 @@
                :key key
                :val body
                :res res-chan})
-    (let [{:keys [status body]} (<!! res-chan)]
+    (let [res (<!! res-chan)]
       (async/close! res-chan)
-      {:headers {}
-       :status status
-       :body body})))
+      res)))
 
 (defroutes api-routes
   (GET  "/get/:key" [key :as req] (get-key key req))

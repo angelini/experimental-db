@@ -12,17 +12,25 @@ JAR_PATH="${DIR}/exdb.jar"
 
 . "${DIR}/env.sh"
 
+host () {
+  echo "${1}" | cut -d ":" -f 1
+}
+
+port () {
+  echo "${1}" | cut -d ":" -f 2
+}
+
 case "${1}" in
   start)
     if [[ ! -f "${REDIS_PID}" ]]; then
-      redis-server --port "${REDIS_PORT}" \
+      redis-server --port $(port "${REDIS_ADDR}") \
                    > "${REDIS_LOG}" &
       echo "${!}" > "${REDIS_PID}"
     fi
 
     if [[ ! -f "${SERF_PID}" ]]; then
       serf agent \
-           -node="${NODE_NAME}" \
+           -node="${API_ADDR}" \
            -bind="${SERF_BIND}" \
            -rpc-addr="${SERF_RPC}" \
            -join="${SERF_SEED}" \
