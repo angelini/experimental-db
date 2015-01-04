@@ -3,7 +3,8 @@
             [clojurewerkz.chash.ring :as ch]
             [ring.adapter.jetty :refer (run-jetty)]
             [exdb.serf :as serf]
-            [exdb.server :as server])
+            [exdb.server :as server]
+            [exdb.redis :as redis])
   (:gen-class))
 
 (def members (atom {}))
@@ -14,17 +15,22 @@
 (defn- id->name [id]
   (str "node-" (format-id id)))
 
+(defn- parse-url [url]
+  (let [[host port] (clojure.string/split url #":")]
+    [host (Integer/parseInt port)]))
+
 (defn parse-env [env]
   (-> env
-      (select-keys ["SERF_SEED_RPC" "NUM_NODES" "NODE_NAME"])
-      (clojure.set/rename-keys {"SERF_SEED_RPC" :seed_rpc
+      (select-keys ["SERF_SEED_RPC" "NUM_NODES" "NODE_NAME" "API_PORT" "REDIS_PORT"])
+      (clojure.set/rename-keys {"SERF_SEED_RPC" :seed-rpc
                                 "NUM_NODES" :num
-                                "NODE_NAME" :name})
-      (update-in [:seed_rpc] (fn [seed]
-                               (let [[host port] (clojure.string/split seed #":")]
-                                 [host (Integer/parseInt port)])))
-      (update-in [:num] (fn [num]
-                          (Integer/parseInt num)))))
+                                "NODE_NAME" :name
+                                "API_PORT" :api-port
+                                "REDIS_PORT" :redis-port})
+      (update-in [:seed-rpc] parse-url)
+      (update-in [:num] #(Integer/parseInt %))
+      (update-in [:redis-port] #(Integer/parseInt %))
+      (update-in [:api-port] #(Integer/parseInt %))))
 
 (defn initial-members [client]
   (let [members (serf/members client)]
@@ -63,28 +69,30 @@
     (map #(nth % 1) successors)))
 
 (defmulti handle-request
-  (fn [req] (:command req)))
+  (fn [req & args] (:command req)))
 
-(defmethod handle-request :get [req]
+(defmethod handle-request :get [req ch-ring client]
   (>!! (:res req) {:status 200
-                   :body "GET"}))
+                   :body (redis/g client (:key req))}))
 
-(defmethod handle-request :set [req]
-  (>!! (:res req) {:status 200
-                   :body "SET"}))
+(defmethod handle-request :set [req ch-ring client]
+  (let [{:keys [key val]} req]
+    (>!! (:res req) {:status 200
+                     :body (redis/s client key val)})))
 
 (defmethod handle-request :default [req]
   (throw (Exception. (str "Unknown command: " (:command req)))))
 
-(defn listen [ch-ring chan]
-  (async/go-loop [req (<! chan)]
-    (handle-request (assoc req :ch-ring ch-ring))
-    (recur (<! chan))))
+(defn start-api [port ch-ring client]
+  (let [chan (async/chan 10)]
+    (async/go-loop [req (<! chan)]
+      (handle-request req ch-ring client)
+      (recur (<! chan)))
+    (run-jetty (server/api chan) {:port port :join? false})))
 
 (defn -main []
   (let [env (parse-env (System/getenv))
         ch-ring (build-ch-ring (:num env))
-        req-chan (async/chan 10)]
-    (watch-members (:seed_rpc env))
-    (listen ch-ring req-chan)
-    (run-jetty (server/create-app req-chan) {:port 8080 :join? false})))
+        client (redis/connect (:redis-port env))]
+    (watch-members (:seed-rpc env))
+    (start-api (:api-port env) ch-ring client)))

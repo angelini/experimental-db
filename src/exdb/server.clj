@@ -34,10 +34,10 @@
   (POST "/set/:key" [key :as req] (set-key key req)))
 
 (defn add-chan [handler chan]
-  (fn [request]
-    (handler (assoc request :chan chan))))
+  (fn [req]
+    (handler (assoc req :chan chan))))
 
-(defn create-app [chan]
+(defn api [chan]
   (-> api-routes
       (wrap-defaults api-defaults)
       (wrap-json-body {:keywords? true})
