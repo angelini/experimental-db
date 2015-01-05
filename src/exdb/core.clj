@@ -10,9 +10,12 @@
 
 (def members (atom {}))
 
-(defn- parse-addr [addr]
-  (let [[host port] (clojure.string/split addr #":")]
+(defn- parse-addr [s]
+  (let [[host port] (clojure.string/split s #":")]
     [host (Integer/parseInt port)]))
+
+(defn- addr->str [[host port]]
+  (str host ":" port))
 
 (defn parse-env [env]
   (-> env
@@ -59,9 +62,10 @@
   (throw (Exception. (str "Unknown command: " (:command req)))))
 
 (defn redirect-to-node [req nodes]
-  (>!! (:res req) (-> (rand-nth (vec nodes))
-                      (str "/key/" (:key req))
-                      redirect)))
+  (let [node (rand-nth (vec nodes))
+        {:keys [command key]} req]
+    (>!! (:res req) (-> (str "http://" node "/" command "/" key)
+                        redirect))))
 
 (defn mark-claimant [nodes idx part]
   (let [[hash _] part
@@ -80,9 +84,7 @@
   (async/go-loop [req (<! chan)]
     (let [ring' (update-ring ring (keys @members))
           nodes (ch/key->nodes ring' (:key req) 3)]
-      (prn "nodes" nodes)
-      (prn "api-addr" api-addr)
-      (if (contains? nodes api-addr)
+      (if (contains? nodes (addr->str api-addr))
         (handle-request req ring' client)
         (redirect-to-node req nodes)))))
 
@@ -90,7 +92,7 @@
   (let [chan (async/chan 10)
         port (second api-addr)]
     (listen chan api-addr ring client)
-    (run-jetty (server/api chan) {:port port :join? false})))
+    (run-jetty (server/api chan) {:port port})))
 
 (defn -main []
   (let [env (parse-env (System/getenv))

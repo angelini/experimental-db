@@ -31,6 +31,7 @@
 
 (defn add-chan [handler chan]
   (fn [req]
+    (prn "add-chan" req)
     (handler (assoc req :chan chan))))
 
 (defn api [chan]

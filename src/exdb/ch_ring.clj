@@ -2,7 +2,7 @@
   (:import [java.security MessageDigest]
            [java.math BigInteger]))
 
-(def ring-top (dec (Math/pow 2 160)))
+(def ring-top (Math/pow 2 160))
 
 (defn ring-increment [n]
   (quot ring-top n))
@@ -15,23 +15,26 @@
 
 (defn build-ring [n-partitions seed]
   (let [delta (ring-increment n-partitions)
-        tokens (doall (range 0 ring-top delta))]
+        tokens (doall (range 0 (inc ring-top) delta))]
     (vec (map #(identity [% seed])
               tokens))))
 
 (defn at-node? [ring n-token token]
   (let [increment (ring-increment (count ring))]
     (and (>= token n-token)
-         (not (>= token (+ n-token
-                           increment))))))
+         (not (> token (+ n-token
+                          increment))))))
 
-(defn update-partition [ring token node]
+(defn token->index [ring token]
   (loop [idx 0
          [[n-token _] & parts] ring]
     (if (at-node? ring n-token token)
-      (assoc ring idx [token node])
+      idx
       (recur (+ idx 1)
              parts))))
+
+(defn update-partition [ring token node]
+  (assoc ring (token->index ring token) [token node]))
 
 (defn unique-nodes [ring]
   (reduce (fn [nodes [_ node]]
@@ -42,8 +45,7 @@
 (defn key->nodes [ring key n]
   (assert (>= (count (unique-nodes ring)) n))
   (let [token (sha key)
-        c-ring (cycle ring)
-        increment (ring-increment (count ring))]
+        c-ring (cycle ring)]
     (reduce (fn [nodes [n-token node]]
               (cond
                 (= (count nodes) n) (reduced nodes)
