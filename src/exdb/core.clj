@@ -5,7 +5,7 @@
             [exdb.serf :as serf]
             [exdb.server :as server]
             [exdb.redis :as redis]
-            [exdb.ring :as ring])
+            [exdb.ch-ring :as ch])
   (:gen-class))
 
 (def members (atom {}))
@@ -59,15 +59,31 @@
   (throw (Exception. (str "Unknown command: " (:command req)))))
 
 (defn redirect-to-node [req nodes]
-  (>!! (:res req) (-> (rand-nth nodes)
+  (>!! (:res req) (-> (rand-nth (vec nodes))
                       (str "/key/" (:key req))
                       redirect)))
 
+(defn mark-claimant [nodes idx part]
+  (let [[hash _] part
+        addrs (vec nodes)
+        addr (nth addrs (mod idx (count nodes)))]
+    [hash addr]))
+
+(defn update-ring [ring nodes]
+  (let [claims (map-indexed #(mark-claimant nodes %1 %2) ring)]
+    (reduce (fn [r [token node]]
+              (ch/update-partition r token node))
+            ring
+            claims)))
+
 (defn listen [chan api-addr ring client]
   (async/go-loop [req (<! chan)]
-    (let [nodes (ring/key->nodes ring (:key req))]
+    (let [ring' (update-ring ring (keys @members))
+          nodes (ch/key->nodes ring' (:key req) 3)]
+      (prn "nodes" nodes)
+      (prn "api-addr" api-addr)
       (if (contains? nodes api-addr)
-        (handle-request req ring client)
+        (handle-request req ring' client)
         (redirect-to-node req nodes)))))
 
 (defn start-api [api-addr ring client]
@@ -79,6 +95,6 @@
 (defn -main []
   (let [env (parse-env (System/getenv))
         client (redis/connect (:redis-addr env))
-        ring (ring/build-ring [(:api-addr env)] (:n env))]
-    (watch-members (:seed-rpc env) ring)
+        ring (ch/build-ring (:num env) (:api-addr env))]
+    (watch-members (:seed-rpc env))
     (start-api (:api-addr env) ring client)))

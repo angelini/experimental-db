@@ -22,7 +22,7 @@
          '[exdb.core :refer :all]
          '[exdb.serf :as serf]
          '[exdb.redis :as redis]
-         '[exdb.ring :as ring])
+         '[exdb.ch-ring :as ch])
 
 (defn exec [script & args]
   (let [file (-> (get-env :target-path)
